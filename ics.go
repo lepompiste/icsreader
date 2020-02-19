@@ -1,5 +1,6 @@
 package icsreader
 
+// Constants for useful ICS keywords
 const (
 	eventPropertyBeginV       = "BEGIN"
 	eventPropertyEndV         = "END"

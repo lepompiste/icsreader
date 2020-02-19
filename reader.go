@@ -7,7 +7,7 @@ import (
 	"strings"
 )
 
-func isIgnoredKeyword(kw string) bool {
+func isIgnoredKeyword(kw string) bool { // test if keyword is ignored or not
 	switch kw {
 	case "METHOD", "PRODID", "VERSION", "CALSCALE", "UID", "CREATED", "SEQUENCE", "DTSTAMP":
 		return true
@@ -17,28 +17,32 @@ func isIgnoredKeyword(kw string) bool {
 
 // Parse : transform a reader into a list of events
 func Parse(r io.Reader) Events {
-	var reader *bufio.Reader = bufio.NewReader(r)
-	var idle bool = false
-	var idleLevel uint8 = 0
-	var lastKw string
+	var reader *bufio.Reader = bufio.NewReader(r) // Create a bufio.Reader to read the stream line by line
 
-	var res Events
-	var e *Event
+	var idle bool = false   // used to ignore several types of entries (VALARM, VTODO, ...)
+	var idleLevel uint8 = 0 // used to get the level of indentation inside ignored entry
+
+	var lastKw string // last ICS keyword, use to deal with multiple lines text
+
+	var res Events // return table
+
+	var e *Event // ongoing event struct
 
 	for {
-		line, _, err := reader.ReadLine()
+		line, _, err := reader.ReadLine() // Reading line by line
 		if err == io.EOF {
-			break
+			break // breaking when end of stream
 		}
 
-		parts := strings.Split(string(line), ":")
+		parts := strings.Split(string(line), ":") // splitting at ':' to get the fisrt keyword (BEGIN, END, ...)
 
-		if !idle || parts[0] == "END" {
-			switch parts[0] {
+		if !idle || parts[0] == "END" { // if current event is not ignored, continue. if the keyword is "END", then reducing idleLevel and maybe set idle to false
+
+			switch parts[0] { // swicth the keyword
 			case eventPropertyBeginV:
-				if parts[1] == "VEVENT" {
+				if parts[1] == "VEVENT" { // only VEVENT is insteresting us
 					e = &Event{}
-				} else if parts[1] != "VCALENDAR" {
+				} else if parts[1] != "VCALENDAR" { // VCALENDAR is ignored, but not setting idle to true, because all the data is in it. if not VCALENDAR, then starting idle until the end of the entry
 					idle = true
 					idleLevel++
 					//Debugging
@@ -67,10 +71,11 @@ func Parse(r io.Reader) Events {
 				e.LastModified = makeDate(parts[1], 1)
 
 			case eventPropertyEndV:
-				if parts[1] == "VEVENT" {
+				if parts[1] == "VEVENT" { // at the end of VEVENT, adding the event struct to the res (Events) table
 					res = append(res, *e)
-				} else if parts[1] != "VCALENDAR" {
+				} else if parts[1] != "VCALENDAR" { // same as BEGIN, ignoring if VCALENDAR, and reducing idleLevel at the end of ignored entry
 					idleLevel--
+
 					if idleLevel == 0 {
 						idle = false
 						//Debugging
@@ -78,10 +83,10 @@ func Parse(r io.Reader) Events {
 					}
 				}
 			default:
-				if !isIgnoredKeyword(parts[0]) {
+				if !isIgnoredKeyword(parts[0]) { // many of keywords are ignored, even inside of a VEVENT (SEQUENCE, UID, ...)
 					//Debugging
 					//println("suite ligne :", string(line))
-					switch lastKw {
+					switch lastKw { // if a line not strating with a keyword, then the text of this line is referred to the previous line, so we add it to the previous field
 					case eventPropertySummary:
 						e.Summary = e.Summary + string(line)
 					case eventPropertyLocation:
@@ -99,7 +104,9 @@ func Parse(r io.Reader) Events {
 	return res
 }
 
+// make a Date struct from the ICS date format
 func makeDate(d string, correction int) (res Date) {
+	//Format is YYYYMMDD T HHMMSS Z given at UTC
 	year, err1 := strconv.Atoi(d[0:4])
 	month, err2 := strconv.Atoi(d[4:6])
 	day, err3 := strconv.Atoi(d[6:8])
