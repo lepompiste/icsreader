@@ -3,7 +3,7 @@ Minimalist ICal/ICS Reader
 
 ## How to use it ?
 ```
-$ go get github.com/lepompiste/icsreader
+$ go get github.com/robinjulien/icsreader
 ```
 
 ```go
