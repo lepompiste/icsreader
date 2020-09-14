@@ -9,7 +9,7 @@ $ go get github.com/robinjulien/icsreader
 ```go
 package main
 
-import "github.com/lepompiste/icsreader"
+import "github.com/robinjulien/icsreader"
 
 func main() {
     events, err := icsreader.GetCalendarFromURL("http://example.com/myCalendar.ics")
